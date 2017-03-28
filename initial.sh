@@ -2,27 +2,16 @@
 
 set -e
 
+# Install docker
 echo -e "
 +-----------------+
 | Install Pkg ... |
 +-----------------+
 "
-sudo sed -i 's/us.archive.ubuntu.com/tw.archive.ubuntu.com/g' /etc/apt/sources.list &>/dev/null
-sudo apt-get update &>/dev/null
-sudo apt-get install -y software-properties-common &>/dev/null
-
-# Add repos
-curl -fsSL 'https://download.ceph.com/keys/release.asc' | sudo apt-key add - &>/dev/null
-echo "deb https://download.ceph.com/debian-kraken/ $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/ceph.list &>/dev/null
-sudo add-apt-repository -y ppa:webupd8team/java &>/dev/null
-echo debconf shared/accepted-oracle-license-v1-1 select true | sudo debconf-set-selections &>/dev/null
-echo debconf shared/accepted-oracle-license-v1-1 seen true | sudo debconf-set-selections &>/dev/null
-
-# Install packages
+sudo apt-get install -y python-setuptools &>/dev/null
+sudo easy_install pip &>/dev/null && sudo pip install boto &>/dev/null
 curl -fsSL https://get.docker.com/ | sh &>/dev/null
-sudo apt-get update &>/dev/null
-sudo apt-get install -y ceph oracle-java8-installer git libjna-java python-rados &>/dev/null
-sudo ln -s /usr/share/java/jna-*.jar /usr/lib/jvm/java-8-oracle/jre/lib/ext/
+sudo gpasswd -a vagrant docker &>/dev/null
 
 # Build rados-java
 echo -e "
@@ -33,6 +22,7 @@ echo -e "
 curl -s  "http://ftp.tc.edu.tw/pub/Apache/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz" | tar zx
 sudo mv apache-maven-3.3.9 /usr/local/maven
 sudo ln -s /usr/local/maven/bin/mvn /usr/bin/mvn
+sudo ln -s /usr/share/java/jna-*.jar /usr/lib/jvm/java-8-oracle/jre/lib/ext/
 git clone "https://github.com/ceph/rados-java.git" &>/dev/null
 cd rados-java && git checkout v0.3.0 &>/dev/null
 mvn clean install -Dmaven.test.skip=true &>/dev/null
@@ -45,7 +35,7 @@ echo -e "
 | Boot Ceph cluster ... |
 +-----------------------+
 "
-sudo docker network create --driver bridge ceph-net
+sudo docker network create --driver bridge ceph-net &>/dev/null
 DIR="/home/vagrant/"
 
 ## mon
@@ -56,7 +46,7 @@ sudo docker run -d --net=ceph-net \
 -e MON_IP=172.18.0.2 \
 -e CEPH_PUBLIC_NETWORK=172.18.0.0/16 \
 --name mon1 \
-ceph/daemon mon
+ceph/daemon mon &>/dev/null
 
 while [ ! -f ${DIR}/lib/ceph/bootstrap-osd/ceph.keyring  ]; do sleep 1; done
 
@@ -71,13 +61,31 @@ for device in sdb sdc sdd; do
     -e OSD_TYPE=disk \
     -e OSD_FORCE_ZAP=1 \
     --name osd-${device} \
-    ceph/daemon osd
+    ceph/daemon osd &>/dev/null
 
     sleep 1
 done
 
+sudo docker run -d --net=ceph-net \
+-v ${DIR}/lib/ceph/:/var/lib/ceph/ \
+-v ${DIR}/ceph:/etc/ceph \
+-p 8080:8080 \
+--name rgw1 \
+ceph/daemon rgw &>/dev/null
+
 sudo cp ${DIR}/ceph/* /etc/ceph
+sudo chmod 775 /etc/ceph/ceph.client.admin.keyring
 sudo ceph osd pool create data 32 &>/dev/null
+
+sudo docker exec -ti rgw1 radosgw-admin user create --uid="test" --display-name="I'm Test account" --email="test@example.com" --access-key="access-test" --secret-key="secret-test" &>/dev/null
+curl -sSL https://gist.githubusercontent.com/kairen/e0dec164fa6664f40784f303076233a5/raw/33add5a18cb7d6f18531d8d481562d017557747c/s3client -o s3client
+chmod u+x s3client
+cat <<EOF > test-key.sh
+export S3_ACCESS_KEY="access-test"
+export S3_SECRET_KEY="secret-test"
+export S3_HOST="127.0.0.1"
+export S3_PORT="8080"
+EOF
 
 echo -e "
 +-------------+
