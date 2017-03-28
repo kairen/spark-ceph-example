@@ -1,12 +1,12 @@
 #!/bin/bash
+#
+# Setup Spark with Hadoop on localhost.
+#
 
-USER_NAME=$(whoami)
-HADOOP_VERSION="hadoop-2.7.3"
-SPARK_VER="2.0.0"
+HDP_VERSION="2.7.3"
+SPARK_VERSION="2.0.0"
 
-HOST_NAME=$(hostname)
-sudo sed "2c 127.0.1.1 $(hostname)" -i /etc/hosts
-
+# install package
 sudo apt-get install -y expect
 
 expect -c "
@@ -21,107 +21,75 @@ cat $HOME/.ssh/id_rsa.pub >> $HOME/.ssh/authorized_keys
 ssh -o StrictHostKeyChecking=no localhost echo "Login Ok...."
 ssh -o StrictHostKeyChecking=no 0.0.0.0 echo "Login Ok...."
 
-# download hadoop
+# install hadoop
+SOURE_URL="http://apache.stu.edu.tw/hadoop/common"
 sudo chown -R ${USER}:${USER} /opt/
 cd /opt/
-
-wget http://apache.stu.edu.tw/hadoop/common/${HADOOP_VERSION}/${HADOOP_VERSION}.tar.gz
-tar xvzf ${HADOOP_VERSION}.tar.gz
-rm ${HADOOP_VERSION}.tar.gz
-cd /opt/${HADOOP_VERSION}/etc/hadoop/
+curl -sSL ${SOURE_URL}/hadoop-${HDP_VERSION}/hadoop-${HDP_VERSION}.tar.gz | tar xz
+mv hadoop-${HDP_VERSION}/ hadoop
+cd /opt/hadoop/etc/hadoop/
 sudo rm -rf core-site.xml mapred-site.xml.template hdfs-site.xml yarn-site.xml
 
-# hadoop-env.sh
-echo 'export JAVA_HOME=/usr/lib/jvm/java-8-oracle' >> /opt/${HADOOP_VERSION}/etc/hadoop/hadoop-env.sh
-
-# core-site.xml
+# configure hadoop
+CONF_DIR="/opt/hadoop/etc/hadoop"
+echo 'export JAVA_HOME=/usr/lib/jvm/java-8-oracle' >> ${CONF_DIR}/hadoop-env.sh
 sudo mkdir -p /app/hadoop/tmp
+sudo mkdir -p /usr/local/hadoop/tmp/dfs/name/current/
 sudo chown ${USER}:${USER} /app/hadoop/tmp
-SHARE_DIR="/opt/${HADOOP_VERSION}/share/hadoop"
+sudo chown -R ${USER}:${USER} /usr/local/hadoop
 
+SHARE_DIR="/opt/hadoop/share/hadoop"
 for file in aws-java-sdk-1.7.4.jar hadoop-aws-2.7.3.jar jackson-databind-2.2.3.jar jackson-annotations-2.2.3.jar jackson-core-2.2.3.jar; do
   sudo cp ${SHARE_DIR}/tools/lib/${file} ${SHARE_DIR}/common/lib/
 done
 
-
-cat <<EOF > /opt/${HADOOP_VERSION}/etc/hadoop/core-site.xml
-<?xml version="1.0"?><?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
-<configuration>
-<property>
-  <name>fs.defaultFS</name>
-  <value>hdfs://localhost:9000</value>
-</property>
-
-<property>
-  <name>hadoop.tmp.dir</name>
-  <value>/app/hadoop/tmp</value>
-  <description>A base for other temporary directories.</description>
-</property>
-
-<property>
-  <name>fs.s3a.access.key</name>
-  <value>access-test</value>
-</property>
-
-<property>
-<name>fs.s3a.secret.key</name>
-  <value>secret-test</value>
-</property>
-
-<property>
-  <name>fs.s3a.endpoint</name>
-  <value>172.16.35.100:8080</value>
-</property>
-
-<property>
-  <name>fs.s3a.connection.ssl.enabled</name>
-  <value>false</value>
-  <description>Enables or disables SSL connections to S3.</description>
-</property>
-</configuration>
-EOF
-
-# mapred-site.xml
-echo '<?xml version="1.0"?><?xml-stylesheet type="text/xsl" href="configuration.xsl"?><configuration><property><name>mapreduce.framework.name</name><value>yarn</value></property></configuration>' >> /opt/${HADOOP_VERSION}/etc/hadoop/mapred-site.xml
-
-sudo mkdir -p /usr/local/hadoop/tmp/dfs/name/current/
-sudo chown -R ${USER}:${USER} /usr/local/hadoop
-# hdfs-site.xml
-echo '<?xml version="1.0"?><?xml-stylesheet type="text/xsl" href="configuration.xsl"?><configuration><property><name>dfs.replication</name><value>1</value></property><property><name>dfs.namenode.name.dir</name><value>file:/usr/local/hadoop/tmp/dfs/name</value></property><property><name>dfs.datanode.data.dir</name><value>file:/usr/local/hadoop/tmp/dfs/data</value></property><property><name>dfs.permissions</name><value>false</value></property></configuration>' >> /opt/${HADOOP_VERSION}/etc/hadoop/hdfs-site.xml
-
-# yarn-site.xml
-echo '<?xml version="1.0"?><configuration><property><name>yarn.nodemanager.aux-services</name><value>mapreduce_shuffle</value></property></configuration>' >> /opt/${HADOOP_VERSION}/etc/hadoop/yarn-site.xml
+CONF_URL="https://gist.githubusercontent.com/kairen/5c2aa2855dd7ca6c4dda645df75a40https://gist.githubusercontent.com/kairen/5c2aa2855dd7ca6c4dda645df75a4085/raw/d2a96ac329558f0840b4fe54cff6803c51c261df"
+wget ${CONF_URL}/core-site.xml
+wget ${CONF_URL}/mapred-site.xml
+wget ${CONF_URL}/hdfs-site.xml
+wget ${CONF_URL}/yarn-site.xml
 
 # namenode format
-/opt/${HADOOP_VERSION}/bin/hadoop namenode -format <<EOF
+/opt/hadoop/bin/hadoop namenode -format <<EOF
 reload
 y
 EOF
 
-
 # start hadoop
-/opt/${HADOOP_VERSION}/sbin/start-yarn.sh
-/opt/${HADOOP_VERSION}/sbin/start-dfs.sh
+/opt/hadoop/sbin/start-yarn.sh
+/opt/hadoop/sbin/start-dfs.sh
 
-echo "export HADOOP_HOME=\"/opt/${HADOOP_VERSION}\"" | sudo tee -a ~/.bashrc
-echo "export PATH=\$PATH:\$HADOOP_HOME" | sudo tee -a ~/.bashrc
-echo "export HADOOP_BIN=\"/opt/${HADOOP_VERSION}/bin\"" | sudo tee -a ~/.bashrc
-echo "export PATH=\$PATH:\$HADOOP_BIN" | sudo tee -a ~/.bashrc
-source ~/.bashrc
+cd ~/
+echo "export HADOOP_HOME=/opt/hadoop" >> .bashrc
+echo "export PATH=\$PATH:\$HADOOP_HOME" >> .bashrc
+echo "export HADOOP_BIN=/opt/hadoop/bin" >> .bashrc
+echo "export PATH=\$PATH:\$HADOOP_BIN" >> .bashrc
+source .bashrc
 
 # install spark
 echo "Install Spark ...."
-curl -s http://archive.apache.org/dist/spark/spark-${SPARK_VER}/spark-${SPARK_VER}-bin-hadoop2.7.tgz | sudo tar -xz -C /opt/
-sudo mv /opt/spark-${SPARK_VER}-bin-hadoop2.7 /opt/spark
-sudo chown ${USER_NAME}:${USER_NAME} -R /opt/spark
+SPARK_URL="http://d3kbcqa49mib13.cloudfront.net"
+curl -sSL ${SPARK_URL}/spark-${SPARK_VERSION}-bin-hadoop2.7.tgz | tar zx
+sudo mv spark-${SPARK_VERSION}-bin-hadoop2.7 /opt/spark
+sudo chown -R ${USER}:${USER} /opt/spark
 
-echo "export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop" | sudo tee -a /opt/spark/conf/spark-env.sh
-echo "export YARN_CONF_DIR=\$HADOOP_HOME/etc/hadoop" | sudo tee -a /opt/spark/conf/spark-env.sh
-echo "export SPARK_HOME=/opt/spark" | sudo tee -a /opt/spark/conf/spark-env.sh
-echo "export PATH=\$SPARK_HOME/bin:\$PATH" | sudo tee -a /opt/spark/conf/spark-env.sh
+cat <<EOF > /opt/spark/conf/spark-env.sh
+export HADOOP_CONF_DIR=${CONF_DIR}
+export YARN_CONF_DIR=${CONF_DIR}
+export SPARK_HOME=/opt/spark
+export PATH=\$SPARK_HOME/bin:\$PATH
+SPARK_LOCAL_IP=127.0.0.1
+EOF
 
-echo "export SPARK_HOME=/opt/spark" | sudo tee -a ~/.bashrc
-echo "export PATH=\$SPARK_HOME/bin:\$PATH" | sudo tee -a ~/.bashrc
+LIB_DIR="/opt/hadoop/share/hadoop/common/lib"
+cat <<EOF > /opt/spark/conf/spark-defaults.conf
+spark.hadoop.fs.s3a.impl      org.apache.hadoop.fs.s3a.S3AFileSystem
+spark.executor.extraClassPath ${LIB_DIR}/aws-java-sdk-1.7.4.jar:${LIB_DIR}/hadoop-aws-2.7.3.jar
+spark.driver.extraClassPath   ${LIB_DIR}//aws-java-sdk-1.7.4.jar:${LIB_DIR}//hadoop-aws-2.7.3.jar
+EOF
+
+echo "export SPARK_HOME=/opt/spark" >> .bashrc
+echo "export PATH=\$SPARK_HOME/bin:\$PATH" >> .bashrc
 
 echo -e "
 +-------------------+

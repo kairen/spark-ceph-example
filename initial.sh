@@ -8,6 +8,7 @@ echo -e "
 | Install Pkg ... |
 +-----------------+
 "
+sudo apt-get update &>/dev/null
 sudo apt-get install -y python-setuptools &>/dev/null
 sudo easy_install pip &>/dev/null && sudo pip install boto &>/dev/null
 curl -fsSL https://get.docker.com/ | sh &>/dev/null
@@ -77,7 +78,11 @@ sudo cp ${DIR}/ceph/* /etc/ceph
 sudo chmod 775 /etc/ceph/ceph.client.admin.keyring
 sudo ceph osd pool create data 32 &>/dev/null
 
-sudo docker exec -ti rgw1 radosgw-admin user create --uid="test" --display-name="I'm Test account" --email="test@example.com" --access-key="access-test" --secret-key="secret-test" &>/dev/null
+cd ~/
+cat <<EOFF > ${DIR}/create-s3-account.sh
+#!/bin/bash
+
+sudo docker exec -ti rgw1 radosgw-admin user create --uid="test" --display-name="I'm Test account" --email="test@example.com" --access-key="access-test" --secret-key="secret-test"
 curl -sSL https://gist.githubusercontent.com/kairen/e0dec164fa6664f40784f303076233a5/raw/33add5a18cb7d6f18531d8d481562d017557747c/s3client -o s3client
 chmod u+x s3client
 cat <<EOF > test-key.sh
@@ -86,7 +91,10 @@ export S3_SECRET_KEY="secret-test"
 export S3_HOST="127.0.0.1"
 export S3_PORT="8080"
 EOF
+EOFF
 
+sudo chmod u+x ${DIR}/create-s3-account.sh
+sudo chown vagrant ${DIR}/create-s3-account.sh
 echo -e "
 +-------------+
 | Enjoying :) |
