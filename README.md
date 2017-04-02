@@ -31,7 +31,7 @@ This is my object.
 ## Spark s3a example
 This guide is talking about Spark get data from s3, you can follow below step to produce an environment use to testing.
 
-First, go to '/vagrant' dir and run:
+First, go to `/vagrant` dir and run:
 ```sh
 $ cd /vagrant
 $ ./spark-initial.sh
