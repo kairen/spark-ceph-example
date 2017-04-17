@@ -1,5 +1,5 @@
 # Quick Start Rados
-Quick boot a Ceph cluster and compile rados-java jar. Major help to deploy a dev environment use for learning librados API and S3 SDK. 
+Quick boot a Ceph cluster and compile rados-java jar. Major help to deploy a dev environment use for learning librados API and S3 SDK.
 
 Easy enough! install [vagrant](http://www.vagrantup.com/downloads.html) and [virtualbox](https://www.virtualbox.org/wiki/Linux_Downloads):
 ```sh
@@ -19,7 +19,7 @@ Finally, check the ceph cluster and run java example:
 ```sh
 $ sudo ceph -s
 $ cd examples
-$ javac CephExample.java && sudo java CephExample
+$ javac Example.java && sudo java Example
 Put kyle-say
 Put my-object
 

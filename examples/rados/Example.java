@@ -2,7 +2,7 @@ import com.ceph.rados.Rados;
 import com.ceph.rados.exceptions.RadosException;
 import java.io.File;
 import com.ceph.rados.IoCTX;
-public class CephExample {
+public class Example {
     public static void main (String args[]){
       try {
           Rados cluster = new Rados("admin");
@@ -10,13 +10,16 @@ public class CephExample {
           cluster.confReadFile(f);
           cluster.connect();
           System.out.println("Connected to the cluster.");
+
           IoCTX io = cluster.ioCtxCreate("data"); /* Pool Name */
           String oidone = "kyle-say";
           String contentone = "Hello World!";
           io.write(oidone, contentone);
+
           String oidtwo = "my-object";
           String contenttwo = "This is my object.";
           io.write(oidtwo, contenttwo);
+
           String[] objects = io.listObjects();
           for (String object: objects)
               System.out.println("Put " + object);
