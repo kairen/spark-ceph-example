@@ -74,6 +74,13 @@ sudo docker run -d --net=ceph-net \
 --name rgw1 \
 ceph/daemon rgw &>/dev/null
 
+sudo docker run -d --net=ceph-net \
+-v ${DIR}/lib/ceph/:/var/lib/ceph/ \
+-v ${DIR}/ceph:/etc/ceph \
+-p 5000:5000 \
+--name restapi \
+ceph/daemon restapi &>/dev/null
+
 sudo cp ${DIR}/ceph/* /etc/ceph
 sudo chmod 775 /etc/ceph/ceph.client.admin.keyring
 sudo ceph osd pool create data 32 &>/dev/null
