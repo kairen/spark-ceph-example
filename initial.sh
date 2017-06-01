@@ -86,12 +86,14 @@ sudo chmod 775 /etc/ceph/ceph.client.admin.keyring
 sudo ceph osd pool create data 32 &>/dev/null
 
 cd ~/
-cat <<EOFF > ${DIR}/create-s3-account.sh
+curl -sSL https://gist.githubusercontent.com/kairen/e0dec164fa6664f40784f303076233a5/raw/33add5a18cb7d6f18531d8d481562d017557747c/s3client -o s3client
+chmod u+x s3client
+mv s3client /usr/bin
+
+cat <<EOFF > ${DIR}/create-rgw-user.sh
 #!/bin/bash
 
 sudo docker exec -ti rgw1 radosgw-admin user create --uid="test" --display-name="I'm Test account" --email="test@example.com" --access-key="access-test" --secret-key="secret-test"
-curl -sSL https://gist.githubusercontent.com/kairen/e0dec164fa6664f40784f303076233a5/raw/33add5a18cb7d6f18531d8d481562d017557747c/s3client -o s3client
-chmod u+x s3client
 cat <<EOF > test-key.sh
 export S3_ACCESS_KEY="access-test"
 export S3_SECRET_KEY="secret-test"
@@ -100,8 +102,27 @@ export S3_PORT="8080"
 EOF
 EOFF
 
-sudo chmod u+x ${DIR}/create-s3-account.sh
-sudo chown vagrant ${DIR}/create-s3-account.sh
+cat <<EOFF > ${DIR}/create-rgw-admin.sh
+#!/bin/bash
+
+sudo docker exec -ti rgw1 radosgw-admin user create --uid="admin" --display-name="Administrator" --email="admin@example.com" --access-key="access-admin" --secret-key="secret-admin"
+for role in users buckets metadata usage zone; do
+  sudo docker exec -ti rgw1 radosgw-admin caps add --uid="admin" --caps="\${role}=*"
+done
+
+cat <<EOF > admin-key.sh
+export S3_ACCESS_KEY="access-admin"
+export S3_SECRET_KEY="secret-admin"
+export S3_HOST="127.0.0.1"
+export S3_PORT="8080"
+EOF
+EOFF
+
+for file in create-rgw-user.sh create-rgw-admin.sh; do
+  sudo chmod u+x ${DIR}/${file}
+  sudo chown vagrant ${DIR}/${file}
+done
+
 echo -e "
 +-------------+
 | Enjoying :) |
