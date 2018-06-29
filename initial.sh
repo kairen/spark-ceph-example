@@ -38,16 +38,17 @@ echo -e "
 "
 sudo docker network create --driver bridge ceph-net &>/dev/null
 DIR="/home/vagrant/"
+VERSION="master-29f1e9c-jewel-ubuntu-16.04-x86_64"
 
 ## mon
-sudo docker pull ceph/daemon &>/dev/null
+sudo docker pull ceph/daemon:latest-jewel &>/dev/null
 sudo docker run -d --net=ceph-net \
 -v ${DIR}/ceph:/etc/ceph \
 -v ${DIR}/lib/ceph/:/var/lib/ceph/ \
 -e MON_IP=172.18.0.2 \
 -e CEPH_PUBLIC_NETWORK=172.18.0.0/16 \
 --name mon1 \
-ceph/daemon mon &>/dev/null
+ceph/daemon:${VERSION} mon &>/dev/null
 
 while [ ! -f ${DIR}/lib/ceph/bootstrap-osd/ceph.keyring  ]; do sleep 1; done
 
@@ -62,7 +63,7 @@ for device in sdb sdc sdd; do
     -e OSD_TYPE=disk \
     -e OSD_FORCE_ZAP=1 \
     --name osd-${device} \
-    ceph/daemon osd &>/dev/null
+    ceph/daemon:${VERSION} osd &>/dev/null
 
     sleep 1
 done
@@ -72,14 +73,14 @@ sudo docker run -d --net=ceph-net \
 -v ${DIR}/ceph:/etc/ceph \
 -p 8080:8080 \
 --name rgw1 \
-ceph/daemon rgw &>/dev/null
+ceph/daemon:${VERSION} rgw &>/dev/null
 
 sudo docker run -d --net=ceph-net \
 -v ${DIR}/lib/ceph/:/var/lib/ceph/ \
 -v ${DIR}/ceph:/etc/ceph \
 -p 5000:5000 \
 --name restapi \
-ceph/daemon restapi &>/dev/null
+ceph/daemon:${VERSION} restapi &>/dev/null
 
 sudo cp ${DIR}/ceph/* /etc/ceph
 sudo chmod 775 /etc/ceph/ceph.client.admin.keyring

@@ -1,4 +1,4 @@
-# Quick Start Rados
+# Ceph All-in-one Vagrant
 Quick boot a Ceph cluster and compile rados-java jar. Major help to deploy a dev environment use for learning librados API and S3 SDK.
 
 Easy enough! install [vagrant](http://www.vagrantup.com/downloads.html) and [virtualbox](https://www.virtualbox.org/wiki/Linux_Downloads):
