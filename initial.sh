@@ -5,7 +5,7 @@ set -e
 # Install docker
 echo -e "
 +-----------------+
-| Install Pkg ... |
+| Install pkgs ... |
 +-----------------+
 "
 sudo apt-get update &>/dev/null
@@ -13,22 +13,6 @@ sudo apt-get install -y python-setuptools &>/dev/null
 sudo easy_install pip &>/dev/null && sudo pip install boto &>/dev/null
 curl -fsSL https://get.docker.com/ | sh &>/dev/null
 sudo gpasswd -a vagrant docker &>/dev/null
-
-# Build rados-java
-echo -e "
-+----------------------+
-| Build rados-java ... |
-+----------------------+
-"
-curl -s  "http://ftp.tc.edu.tw/pub/Apache/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz" | tar zx
-sudo mv apache-maven-3.3.9 /usr/local/maven
-sudo ln -s /usr/local/maven/bin/mvn /usr/bin/mvn
-sudo ln -s /usr/share/java/jna-*.jar /usr/lib/jvm/java-8-oracle/jre/lib/ext/
-git clone "https://github.com/ceph/rados-java.git" &>/dev/null
-cd rados-java && git checkout v0.3.0 &>/dev/null
-mvn clean install -Dmaven.test.skip=true &>/dev/null
-sudo cp target/rados-0.3.0.jar /usr/share/java
-sudo ln -s /usr/share/java/rados-0.3.0.jar /usr/lib/jvm/java-8-oracle/jre/lib/ext/
 
 # Create a Ceph cluster
 echo -e "
@@ -38,21 +22,28 @@ echo -e "
 "
 sudo docker network create --driver bridge ceph-net &>/dev/null
 DIR="/home/vagrant/"
-VERSION="master-29f1e9c-jewel-ubuntu-16.04-x86_64"
+VERSION="master-29f1e9c-luminous-ubuntu-16.04-x86_64"
 
-## mon
-sudo docker pull ceph/daemon:latest-jewel &>/dev/null
+# deploy mon
+sudo docker pull ceph/daemon:${VERSION} &>/dev/null
 sudo docker run -d --net=ceph-net \
--v ${DIR}/ceph:/etc/ceph \
--v ${DIR}/lib/ceph/:/var/lib/ceph/ \
--e MON_IP=172.18.0.2 \
--e CEPH_PUBLIC_NETWORK=172.18.0.0/16 \
---name mon1 \
-ceph/daemon:${VERSION} mon &>/dev/null
+  -v ${DIR}/ceph:/etc/ceph \
+  -v ${DIR}/lib/ceph/:/var/lib/ceph/ \
+  -e MON_IP=172.18.0.2 \
+  -e CEPH_PUBLIC_NETWORK=172.18.0.0/16 \
+  --name mon \
+  ceph/daemon:${VERSION} mon &>/dev/null
 
 while [ ! -f ${DIR}/lib/ceph/bootstrap-osd/ceph.keyring  ]; do sleep 1; done
 
-## osd
+# deploy mgr
+sudo docker run -d --net=ceph-net \
+  -v ${DIR}/ceph:/etc/ceph \
+  -v ${DIR}/lib/ceph/:/var/lib/ceph/ \
+  --name mgr \
+  ceph/daemon:${VERSION} mgr &>/dev/null
+
+# deploy osds
 for device in sdb sdc sdd; do
   sudo docker run -d --net=ceph-net \
     --privileged=true --pid=host \
@@ -62,25 +53,36 @@ for device in sdb sdc sdd; do
     -e OSD_DEVICE=/dev/${device} \
     -e OSD_TYPE=disk \
     -e OSD_FORCE_ZAP=1 \
+    -e OSD_BLUESTORE=1 \
     --name osd-${device} \
     ceph/daemon:${VERSION} osd &>/dev/null
 
     sleep 1
 done
 
+# deploy mds
 sudo docker run -d --net=ceph-net \
--v ${DIR}/lib/ceph/:/var/lib/ceph/ \
--v ${DIR}/ceph:/etc/ceph \
--p 8080:8080 \
---name rgw1 \
-ceph/daemon:${VERSION} rgw &>/dev/null
+  -v ${DIR}/lib/ceph/:/var/lib/ceph/ \
+  -v ${DIR}/ceph:/etc/ceph \
+  -e CEPHFS_CREATE=1 \
+  --name mds \
+  ceph/daemon:${VERSION} mds
 
+# deploy rgw
 sudo docker run -d --net=ceph-net \
--v ${DIR}/lib/ceph/:/var/lib/ceph/ \
--v ${DIR}/ceph:/etc/ceph \
--p 5000:5000 \
---name restapi \
-ceph/daemon:${VERSION} restapi &>/dev/null
+  -v ${DIR}/lib/ceph/:/var/lib/ceph/ \
+  -v ${DIR}/ceph:/etc/ceph \
+  -p 8080:8080 \
+  --name rgw \
+  ceph/daemon:${VERSION} rgw &>/dev/null
+
+# deploy rest api
+sudo docker run -d --net=ceph-net \
+  -v ${DIR}/lib/ceph/:/var/lib/ceph/ \
+  -v ${DIR}/ceph:/etc/ceph \
+  -p 5000:5000 \
+  --name restapi \
+  ceph/daemon:${VERSION} restapi &>/dev/null
 
 sudo cp ${DIR}/ceph/* /etc/ceph
 sudo chmod 775 /etc/ceph/ceph.client.admin.keyring

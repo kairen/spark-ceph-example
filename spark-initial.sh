@@ -88,6 +88,22 @@ spark.executor.extraClassPath ${LIB_DIR}/aws-java-sdk-1.7.4.jar:${LIB_DIR}/hadoo
 spark.driver.extraClassPath   ${LIB_DIR}//aws-java-sdk-1.7.4.jar:${LIB_DIR}//hadoop-aws-2.7.3.jar
 EOF
 
+# Build rados-java
+echo -e "
++----------------------+
+| Build rados-java ... |
++----------------------+
+"
+curl -s  "http://ftp.tc.edu.tw/pub/Apache/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz" | tar zx
+sudo mv apache-maven-3.3.9 /usr/local/maven
+sudo ln -s /usr/local/maven/bin/mvn /usr/bin/mvn
+sudo ln -s /usr/share/java/jna-*.jar /usr/lib/jvm/java-8-oracle/jre/lib/ext/
+git clone "https://github.com/ceph/rados-java.git" &>/dev/null
+cd rados-java && git checkout v0.3.0 &>/dev/null
+mvn clean install -Dmaven.test.skip=true &>/dev/null
+sudo cp target/rados-0.3.0.jar /usr/share/java
+sudo ln -s /usr/share/java/rados-0.3.0.jar /usr/lib/jvm/java-8-oracle/jre/lib/ext/
+
 echo "export SPARK_HOME=/opt/spark" >> .bashrc
 echo "export PATH=\$SPARK_HOME/bin:\$PATH" >> .bashrc
 
