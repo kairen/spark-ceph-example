@@ -91,12 +91,12 @@ sudo ceph osd pool create data 32 &>/dev/null
 cd ~/
 curl -sSL https://gist.githubusercontent.com/kairen/e0dec164fa6664f40784f303076233a5/raw/33add5a18cb7d6f18531d8d481562d017557747c/s3client -o s3client
 chmod u+x s3client
-mv s3client /usr/bin
+mv s3client /usr/local/bin
 
 cat <<EOFF > ${DIR}/create-rgw-user.sh
 #!/bin/bash
 
-sudo docker exec -ti rgw1 radosgw-admin user create --uid="test" --display-name="I'm Test account" --email="test@example.com" --access-key="access-test" --secret-key="secret-test"
+sudo docker exec -ti rgw radosgw-admin user create --uid="test" --display-name="I'm Test account" --email="test@example.com" --access-key="access-test" --secret-key="secret-test"
 cat <<EOF > test-key.sh
 export S3_ACCESS_KEY="access-test"
 export S3_SECRET_KEY="secret-test"
@@ -108,9 +108,9 @@ EOFF
 cat <<EOFF > ${DIR}/create-rgw-admin.sh
 #!/bin/bash
 
-sudo docker exec -ti rgw1 radosgw-admin user create --uid="admin" --display-name="Administrator" --email="admin@example.com" --access-key="access-admin" --secret-key="secret-admin"
+sudo docker exec -ti rgw radosgw-admin user create --uid="admin" --display-name="Administrator" --email="admin@example.com" --access-key="access-admin" --secret-key="secret-admin"
 for role in users buckets metadata usage zone; do
-  sudo docker exec -ti rgw1 radosgw-admin caps add --uid="admin" --caps="\${role}=*"
+  sudo docker exec -ti rgw radosgw-admin caps add --uid="admin" --caps="\${role}=*"
 done
 
 cat <<EOF > admin-key.sh
