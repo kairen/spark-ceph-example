@@ -1,35 +1,20 @@
-# Ceph All-in-one Vagrant
-Quick boot a Ceph cluster and compile rados-java jar. Major help to deploy a dev environment use for learning librados API and S3 SDK.
+# Spark & Ceph
+This repo contains a collection of the files for launching a Ceph cluster and learning how to integrate Ceph S3 with Spark.
 
-Easy enough! install [vagrant](http://www.vagrantup.com/downloads.html) and [virtualbox](https://www.virtualbox.org/wiki/Linux_Downloads):
-```sh
-$ wget https://releases.hashicorp.com/vagrant/1.9.2/vagrant_1.9.2_x86_64.deb
-$ wget http://download.virtualbox.org/virtualbox/5.1.18/virtualbox-5.1_5.1.18-114002~Ubuntu~xenial_amd64.deb
-$ sudo dpkg -i vagrant_1.9.2_x86_64.deb
-$ sudo dpkg -i virtualbox-5.1_5.1.18-114002~Ubuntu~xenial_amd64.deb
-```
+Prerequisites:
 
-Create a vm using vagrant with virtualbox. When the operation is completed, type `vagrant ssh <name>` into vm:
+* [Vagrant](https://www.vagrantup.com/downloads.html): >= 2.0.0.
+* [VirtualBox](https://www.virtualbox.org/wiki/Downloads): >= 5.0.0.
+
+## Create a Ceph cluster
+To create a VM using vagrant with VirtualBox. When the operation is completed, execute `vagrant ssh <name>` command to enter VM:
 ```sh
 $ vagrant up
 $ vagrant ssh ceph-aio
 ```
 
-Finally, check the ceph cluster and run java example:
-```sh
-$ sudo ceph -s
-$ cd examples
-$ javac Example.java && sudo java Example
-Put kyle-say
-Put my-object
-
-# use rados command check object
-$ sudo rados -p data get my-object -
-This is my object.
-```
-
 ## Spark s3a example
-This guide is talking about Spark get data from s3, you can follow below step to produce an environment use to testing.
+This guide is talking about Spark get data from S3, you can follow below steps to produce an environment used to testing.
 
 First, go to `/vagrant` dir and run:
 ```sh
@@ -44,7 +29,7 @@ $ jps
 21822 NameNode
 ```
 
-And then put a data file to s3 using `s3client`:
+And then put a data file to S3 using `s3client`:
 ```sh
 $ ./create-s3-account.sh
 $ source test-key.sh
@@ -58,7 +43,7 @@ $ ./s3client upload files words.txt /
 Upload [words.txt] success ...
 ```
 
-Now launch spark-shell to type the follow steps:
+Now execute `spark-shell` to type the follow step:
 ```sh
 $ spark-shell --master yarn
 scala> val textFile = sc.textFile("s3a://files/words.txt")
@@ -71,7 +56,7 @@ scala> counts.saveAsTextFile("s3a://files/output")
 [Stage 0:>                                                          (0 + 2) / 2]
 ```
 
-Use `s3client` list output files:
+Use `s3client` command to list output files:
 ```sh
 $ ./s3client list files
 ---------- [files] ----------
@@ -81,7 +66,7 @@ output/part-00001   	6                   	2017-03-28T17:06:59.056Z
 words.txt           	44                  	2017-03-28T17:04:33.141Z
 ```
 
-You also can use `hdfs` command to list and cat file:
+You also can use `hdfs` command to list files and display content:
 ```sh
 $ hadoop fs -ls s3a://files/output
 Found 3 items
